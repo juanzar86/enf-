@@ -1,0 +1,652 @@
+import React, { useState } from 'react';
+import { Calendar, Heart, Activity, Ruler, Weight, Baby, TrendingUp, BarChart3, Stethoscope, Wind, Frown, AlertTriangle, Droplet, Beaker, Sun, Pill, Droplets, Syringe, FileText } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+
+export default function NeoClinicCompleto() {
+  const [activeTab, setActiveTab] = useState('prenatal');
+  const [semanas, setSemanas] = useState('');
+  const [datos, setDatos] = useState(null);
+  
+  // Estados existentes
+  const [registroPaciente, setRegistroPaciente] = useState({ longitudReal: '', pesoReal: '', dbpReal: '', ccReal: '', caReal: '', lfReal: '', fcfReal: '', paReal: '', imcReal: '', glucosaReal: '' });
+  const [apgar, setApgar] = useState({ frecuenciaCardiaca: '', esfuerzoRespiratorio: '', tonoMuscular: '', irritabilidadRefleja: '', coloracion: '' });
+  const [silverman, setSilverman] = useState({ movimientoToracoAbdominal: '', tirajeCostal: '', retraccionXifoidea: '', aleteoNasal: '', quejidoEspiratorio: '' });
+  const [dolorEVA, setDolorEVA] = useState('');
+  const [braden, setBraden] = useState({ percepcionSensorial: '', exposicionHumedad: '', actividad: '', movilidad: '', nutricion: '', friccionRozamiento: '' });
+  const [morse, setMorse] = useState({ historiaCaidas: '', diagnosticoSecundario: '', ayudaDeambulacion: '', terapiaIntravenosa: '', marchaPostura: '', estadoMental: '' });
+  const [laboratorio, setLaboratorio] = useState({ hemoglobina: '', hematocrito: '', leucocitos: '', plaquetas: '', glucosa: '', urea: '', creatinina: '', bilirrubinaTotal: '', sodio: '', potasio: '' });
+  const [datosBilirrubina, setDatosBilirrubina] = useState({ horasDeVida: '', nivelBilirrubina: '', edadGestacional: '' });
+
+  // NUEVOS ESTADOS - Farmacología
+  const [farmacologia, setFarmacologia] = useState({
+    medicamento: '',
+    peso: '',
+    edadPostnatal: '',
+    funcionRenal: 'normal'
+  });
+
+  // NUEVOS ESTADOS - Oxigenoterapia
+  const [oxigenoterapia, setOxigenoterapia] = useState({
+    fio2: '',
+    peep: '',
+    pip: '',
+    frecuenciaResp: '',
+    tiempoInsp: '',
+    modoVentilacion: ''
+  });
+
+  // NUEVOS ESTADOS - Dispositivos
+  const [dispositivos, setDispositivos] = useState({
+    cateterUmbilical: { peso: '', longitudTorax: '' },
+    picc: { peso: '', puntoInsercion: '' }
+  });
+
+  // NUEVOS ESTADOS - Diagnósticos NANDA
+  const [diagnosticos, setDiagnosticos] = useState({
+    nanda: [],
+    nic: [],
+    noc: []
+  });
+
+  const handleInputChange = (field, value) => setRegistroPaciente(prev => ({ ...prev, [field]: value }));
+  const handleFarmacologiaChange = (field, value) => setFarmacologia(prev => ({ ...prev, [field]: value }));
+  const handleOxigenoterapiaChange = (field, value) => setOxigenoterapia(prev => ({ ...prev, [field]: value }));
+
+  const calcularApgar = () => Object.values(apgar).reduce((acc, val) => acc + (parseInt(val) || 0), 0);
+  const calcularSilverman = () => Object.values(silverman).reduce((acc, val) => acc + (parseInt(val) || 0), 0);
+  const calcularBraden = () => Object.values(braden).reduce((acc, val) => acc + (parseInt(val) || 0), 0);
+  const calcularMorse = () => Object.values(morse).reduce((acc, val) => acc + (parseInt(val) || 0), 0);
+
+  const interpretarApgar = (p) => p >= 7 ? { texto: 'Normal', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-500' } : p >= 4 ? { texto: 'Depresión moderada', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-500' } : { texto: 'Depresión severa', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-500' };
+  const interpretarSilverman = (p) => p === 0 ? { texto: 'Sin dificultad', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-500' } : p <= 3 ? { texto: 'Leve', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-500' } : p <= 6 ? { texto: 'Moderada', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-500' } : { texto: 'Severa', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-500' };
+
+  // BASE DE DATOS DE MEDICAMENTOS
+  const medicamentosDB = {
+    ampicilina: {
+      nombre: 'Ampicilina',
+      dosis: { prematuro: '50-100 mg/kg/12h', termino: '50-100 mg/kg/8-12h' },
+      via: 'IV',
+      indicacion: 'Sepsis neonatal temprana',
+      presentacion: 'Ampolla 500mg, 1g'
+    },
+    gentamicina: {
+      nombre: 'Gentamicina',
+      dosis: { prematuro: '2.5 mg/kg/18-24h', termino: '2.5-3 mg/kg/24h' },
+      via: 'IV',
+      indicacion: 'Infecciones gram negativas',
+      presentacion: 'Ampolla 20mg/2mL, 80mg/2mL',
+      niveles: 'Pico: 5-10 mg/L, Valle: <2 mg/L'
+    },
+    vancomicina: {
+      nombre: 'Vancomicina',
+      dosis: { prematuro: '10-15 mg/kg/12-18h', termino: '10-15 mg/kg/8-12h' },
+      via: 'IV',
+      indicacion: 'Infecciones por gram positivos',
+      presentacion: 'Frasco 500mg',
+      niveles: 'Valle: 10-20 mg/L'
+    },
+    cafeina: {
+      nombre: 'Cafeína',
+      dosis: { carga: '20 mg/kg dosis única', mantenimiento: '5-10 mg/kg/día' },
+      via: 'IV/VO',
+      indicacion: 'Apnea del prematuro',
+      presentacion: 'Ampolla 20mg/mL',
+      niveles: 'Terapéutico: 8-20 mg/L'
+    },
+    surfactante: {
+      nombre: 'Surfactante',
+      dosis: { inicial: '200 mg/kg', repetir: 'c/12h según necesidad, máx 3 dosis' },
+      via: 'Endotraqueal',
+      indicacion: 'Síndrome de dificultad respiratoria',
+      presentacion: 'Vial 1.5mL (120mg), 3mL (240mg)'
+    }
+  };
+
+  // MODOS DE VENTILACIÓN
+  const modosVentilacion = {
+    'CPAP': { nombre: 'CPAP', descripcion: 'Presión positiva continua', rango: 'PEEP: 4-8 cmH2O, FiO2: 21-100%' },
+    'SIMV': { nombre: 'SIMV', descripcion: 'Ventilación mandatoria intermitente', rango: 'PIP: 15-25, PEEP: 4-6, FR: 30-60' },
+    'AC': { nombre: 'A/C', descripcion: 'Asistido-controlado', rango: 'PIP: 15-25, PEEP: 4-6, FR: 40-60' },
+    'HFOV': { nombre: 'HFOV', descripcion: 'Ventilación oscilatoria alta frecuencia', rango: 'MAP: 8-15, Amplitud: 20-40' }
+  };
+
+  // DIAGNÓSTICOS NANDA COMUNES EN NEONATOLOGÍA
+  const diagnosticosNANDA = [
+    { codigo: '00092', nombre: 'Intolerancia a la actividad', relacionado: 'Desequilibrio entre aporte y demanda de oxígeno' },
+    { codigo: '00032', nombre: 'Patrón respiratorio ineficaz', relacionado: 'Inmadurez neuromuscular' },
+    { codigo: '00004', nombre: 'Riesgo de infección', relacionado: 'Inmadurez del sistema inmune' },
+    { codigo: '00008', nombre: 'Termorregulación ineficaz', relacionado: 'Inmadurez, bajo peso al nacer' },
+    { codigo: '00002', nombre: 'Desequilibrio nutricional', relacionado: 'Aumento de necesidades metabólicas' },
+    { codigo: '00132', nombre: 'Dolor agudo', relacionado: 'Procedimientos invasivos' }
+  ];
+
+  const calcularDosisMedicamento = () => {
+    const med = medicamentosDB[farmacologia.medicamento];
+    if (!med || !farmacologia.peso) return null;
+    
+    const peso = parseFloat(farmacologia.peso);
+    const esPrematuro = semanas && parseInt(semanas) < 37;
+    
+    let resultado = {
+      nombre: med.nombre,
+      presentacion: med.presentacion,
+      indicacion: med.indicacion
+    };
+
+    if (med.dosis.carga) {
+      // Medicamentos con dosis de carga (como cafeína)
+      const carga = parseFloat(med.dosis.carga.split(' ')[0]) * peso;
+      const mant = parseFloat(med.dosis.mantenimiento.split('-')[0]) * peso;
+      resultado.dosis = `Carga: ${carga.toFixed(1)} mg, Mantenimiento: ${mant.toFixed(1)}-${(mant * 2).toFixed(1)} mg/día`;
+    } else {
+      // Medicamentos regulares
+      const dosisStr = esPrematuro ? med.dosis.prematuro : med.dosis.termino;
+      const valores = dosisStr.match(/(\d+)-?(\d+)?/);
+      if (valores) {
+        const min = parseFloat(valores[1]) * peso;
+        const max = valores[2] ? parseFloat(valores[2]) * peso : min;
+        resultado.dosis = `${min.toFixed(1)}-${max.toFixed(1)} mg`;
+        resultado.intervalo = dosisStr.split('/')[1] || '';
+      }
+    }
+
+    resultado.via = med.via;
+    if (med.niveles) resultado.niveles = med.niveles;
+    
+    return resultado;
+  };
+
+  const calcularCateterUmbilical = () => {
+    const peso = parseFloat(dispositivos.cateterUmbilical.peso);
+    const longitudTorax = parseFloat(dispositivos.cateterUmbilical.longitudTorax);
+    if (!peso || !longitudTorax) return null;
+
+    // Fórmula de Dunn
+    const longitudUAC = (3 * peso) + 9; // Catéter arterial umbilical
+    const longitudUVC = longitudTorax * 0.6; // Catéter venoso umbilical
+
+    return {
+      uac: longitudUAC.toFixed(1),
+      uvc: longitudUVC.toFixed(1)
+    };
+  };
+
+  const calcularPICC = () => {
+    const peso = parseFloat(dispositivos.picc.peso);
+    const puntoInsercion = dispositivos.picc.puntoInsercion;
+    if (!peso || !puntoInsercion) return null;
+
+    const longitudes = {
+      'brazo-derecho': peso < 1 ? 8 : peso < 2 ? 10 : 12,
+      'brazo-izquierdo': peso < 1 ? 8.5 : peso < 2 ? 10.5 : 12.5,
+      'pierna-derecha': peso < 1 ? 12 : peso < 2 ? 14 : 16,
+      'pierna-izquierda': peso < 1 ? 12.5 : peso < 2 ? 14.5 : 16.5
+    };
+
+    return {
+      longitud: longitudes[puntoInsercion] || 10,
+      calibre: peso < 1 ? '1.9 Fr' : peso < 2 ? '2 Fr' : '3 Fr'
+    };
+  };
+
+  const datosGestacionales = {
+    8: { somatometria: { longitud: '1.6 cm', peso: '1 g', dbp: 'N/A', cc: 'N/A', ca: 'N/A', lf: 'N/A' }, signosVitales: { fcf: '150-170 lpm', pa: '110/70 mmHg', imc: '18.5-24.9', glucosa: '70-100 mg/dL' }, desarrollo: 'Formación de órganos', percentiles: { peso: 1, longitud: 1.6, dbp: 0, cc: 0, lf: 0 } },
+    16: { somatometria: { longitud: '11.6 cm', peso: '100 g', dbp: '3.5 cm', cc: '11.2 cm', ca: '9.5 cm', lf: '2.2 cm' }, signosVitales: { fcf: '140-160 lpm', pa: '110/70 mmHg', imc: '18.5-24.9', glucosa: '70-100 mg/dL' }, desarrollo: 'Movimientos perceptibles', percentiles: { peso: 100, longitud: 11.6, dbp: 3.5, cc: 11.2, lf: 2.2 } },
+    24: { somatometria: { longitud: '30 cm', peso: '600 g', dbp: '6.0 cm', cc: '22.0 cm', ca: '19.2 cm', lf: '4.4 cm' }, signosVitales: { fcf: '130-150 lpm', pa: '115/75 mmHg', imc: '18.5-24.9', glucosa: '70-100 mg/dL' }, desarrollo: 'Desarrollo pulmonar', percentiles: { peso: 600, longitud: 30, dbp: 6.0, cc: 22.0, lf: 4.4 } },
+    32: { somatometria: { longitud: '42.4 cm', peso: '1700 g', dbp: '8.0 cm', cc: '29.5 cm', ca: '27.0 cm', lf: '6.2 cm' }, signosVitales: { fcf: '130-150 lpm', pa: '115/75 mmHg', imc: '18.5-24.9', glucosa: '70-100 mg/dL' }, desarrollo: 'Ganancia peso', percentiles: { peso: 1700, longitud: 42.4, dbp: 8.0, cc: 29.5, lf: 6.2 } },
+    40: { somatometria: { longitud: '51.2 cm', peso: '3400 g', dbp: '9.3 cm', cc: '35.0 cm', ca: '35.5 cm', lf: '7.4 cm' }, signosVitales: { fcf: '120-160 lpm', pa: '120/80 mmHg', imc: '18.5-24.9', glucosa: '70-100 mg/dL' }, desarrollo: 'Término completo', percentiles: { peso: 3400, longitud: 51.2, dbp: 9.3, cc: 35.0, lf: 7.4 } }
+  };
+
+  const buscarDatos = () => {
+    const semanasNum = parseInt(semanas);
+    if (!semanasNum || semanasNum < 8 || semanasNum > 40) { alert('Ingresa semanas entre 8 y 40'); return; }
+    const semanasDisponibles = Object.keys(datosGestacionales).map(Number);
+    let semanaCercana = semanasDisponibles.reduce((prev, curr) => Math.abs(curr - semanasNum) < Math.abs(prev - semanasNum) ? curr : prev);
+    const info = datosGestacionales[semanaCercana];
+    let trimestre = semanasNum <= 13 ? '1er Trim' : semanasNum <= 26 ? '2do Trim' : '3er Trim';
+    const datosGrafica = semanasDisponibles.map(sem => ({ semana: sem, peso: datosGestacionales[sem].percentiles.peso, longitud: datosGestacionales[sem].percentiles.longitud, dbp: datosGestacionales[sem].percentiles.dbp, cc: datosGestacionales[sem].percentiles.cc, lf: datosGestacionales[sem].percentiles.lf }));
+    setDatos({ semanaIngresada: semanasNum, semanaReferencia: semanaCercana, trimestre, datosGrafica, ...info });
+  };
+
+  const tabs = [
+    { id: 'prenatal', name: 'Prenatal', icon: Baby },
+    { id: 'escalas', name: 'Escalas', icon: BarChart3 },
+    { id: 'laboratorio', name: 'Laboratorio', icon: Beaker },
+    { id: 'farmacologia', name: 'Farmacología', icon: Pill },
+    { id: 'oxigenoterapia', name: 'Oxigenoterapia', icon: Wind },
+    { id: 'dispositivos', name: 'Dispositivos', icon: Syringe },
+    { id: 'diagnosticos', name: 'Diagnósticos', icon: FileText }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-pink-500 to-purple-600 p-3 rounded-xl"><Baby className="text-white" size={32} /></div>
+            <div><h1 className="text-3xl font-bold text-gray-800">NeoClinic - Sistema Completo</h1><p className="text-gray-600">Gestión integral de enfermería neonatal</p></div>
+          </div>
+        </div>
+
+        {/* Tabs de Navegación */}
+        <div className="bg-white rounded-2xl shadow-lg p-2">
+          <div className="flex flex-wrap gap-2">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${activeTab === tab.id ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                  <Icon size={18} />
+                  {tab.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Input de Semanas (común para todos) */}
+        {activeTab === 'prenatal' && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-gray-700 font-semibold mb-2 flex items-center gap-2"><Calendar className="text-pink-500" size={20} />Semanas de Gestación</label>
+                <input type="number" min="8" max="40" value={semanas} onChange={(e) => setSemanas(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && buscarDatos()} placeholder="8-40" className="w-full px-4 py-3 border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:outline-none text-lg" />
+              </div>
+              <button onClick={buscarDatos} className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg">Consultar</button>
+            </div>
+          </div>
+        )}
+
+        {/* Contenido por Tab */}
+        {activeTab === 'prenatal' && datos && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white grid md:grid-cols-3 gap-4">
+              <div className="text-center"><div className="text-sm opacity-90">Edad Gestacional</div><div className="text-3xl font-bold">{datos.semanaIngresada} SDG</div></div>
+              <div className="text-center"><div className="text-sm opacity-90">Trimestre</div><div className="text-3xl font-bold">{datos.trimestre}</div></div>
+              <div className="text-center"><div className="text-sm opacity-90">Referencia</div><div className="text-3xl font-bold">{datos.semanaReferencia} sem</div></div>
+            </div>
+            <div className="bg-white rounded-xl p-6">
+              <h3 className="text-xl font-bold mb-3">Somatometría y Signos Vitales de Referencia</h3>
+              <div className="grid md:grid-cols-2 gap-4 text-sm">
+                <div><strong>Longitud:</strong> {datos.somatometria.longitud}</div>
+                <div><strong>Peso:</strong> {datos.somatometria.peso}</div>
+                <div><strong>FCF:</strong> {datos.signosVitales.fcf}</div>
+                <div><strong>Desarrollo:</strong> {datos.desarrollo}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB FARMACOLOGÍA */}
+        {activeTab === 'farmacologia' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Pill className="text-indigo-500" size={28} />
+                Calculadora de Dosis Farmacológicas
+              </h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Medicamento</label>
+                  <select value={farmacologia.medicamento} onChange={(e) => handleFarmacologiaChange('medicamento', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:outline-none">
+                    <option value="">Seleccionar...</option>
+                    {Object.keys(medicamentosDB).map(key => (
+                      <option key={key} value={key}>{medicamentosDB[key].nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Peso (kg)</label>
+                  <input type="number" step="0.01" value={farmacologia.peso} onChange={(e) => handleFarmacologiaChange('peso', e.target.value)}
+                    placeholder="Ej: 2.1" className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Edad Postnatal (días)</label>
+                  <input type="number" value={farmacologia.edadPostnatal} onChange={(e) => handleFarmacologiaChange('edadPostnatal', e.target.value)}
+                    placeholder="Ej: 5" className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Función Renal</label>
+                  <select value={farmacologia.funcionRenal} onChange={(e) => handleFarmacologiaChange('funcionRenal', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:outline-none">
+                    <option value="normal">Normal</option>
+                    <option value="leve">Disfunción leve</option>
+                    <option value="moderada">Disfunción moderada</option>
+                    <option value="severa">Disfunción severa</option>
+                  </select>
+                </div>
+              </div>
+              {calcularDosisMedicamento() && (
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
+                  <h3 className="text-xl font-bold text-indigo-800 mb-4">Resultado del Cálculo</h3>
+                  {(() => {
+                    const resultado = calcularDosisMedicamento();
+                    return (
+                      <div className="space-y-2 text-gray-700">
+                        <div><strong>Medicamento:</strong> {resultado.nombre}</div>
+                        <div><strong>Dosis calculada:</strong> {resultado.dosis} {resultado.intervalo && `- ${resultado.intervalo}`}</div>
+                        <div><strong>Vía:</strong> {resultado.via}</div>
+                        <div><strong>Indicación:</strong> {resultado.indicacion}</div>
+                        <div><strong>Presentación:</strong> {resultado.presentacion}</div>
+                        {resultado.niveles && <div className="text-orange-600"><strong>Monitoreo de niveles:</strong> {resultado.niveles}</div>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Tabla de Medicamentos */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Vademécum Neonatal</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-indigo-100">
+                    <tr>
+                      <th className="p-3 text-left">Medicamento</th>
+                      <th className="p-3 text-left">Dosis</th>
+                      <th className="p-3 text-left">Vía</th>
+                      <th className="p-3 text-left">Indicación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(medicamentosDB).map((med, i) => (
+                      <tr key={i} className="border-b hover:bg-gray-50">
+                        <td className="p-3 font-semibold">{med.nombre}</td>
+                        <td className="p-3">{med.dosis.prematuro || med.dosis.carga}</td>
+                        <td className="p-3">{med.via}</td>
+                        <td className="p-3">{med.indicacion}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB OXIGENOTERAPIA */}
+        {activeTab === 'oxigenoterapia' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Wind className="text-cyan-500" size={28} />
+                Parámetros de Ventilación y Oxigenoterapia
+              </h2>
+              <div className="grid md:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Modo de Ventilación</label>
+                  <select value={oxigenoterapia.modoVentilacion} onChange={(e) => handleOxigenoterapiaChange('modoVentilacion', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-cyan-200 rounded-lg focus:border-cyan-500 focus:outline-none">
+                    <option value="">Seleccionar...</option>
+                    {Object.keys(modosVentilacion).map(key => (
+                      <option key={key} value={key}>{modosVentilacion[key].nombre} - {modosVentilacion[key].descripcion}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">FiO₂ (%)</label>
+                  <input type="number" min="21" max="100" value={oxigenoterapia.fio2} onChange={(e) => handleOxigenoterapiaChange('fio2', e.target.value)}
+                    placeholder="21-100" className="w-full px-3 py-2 border-2 border-cyan-200 rounded-lg focus:border-cyan-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">PEEP (cmH₂O)</label>
+                  <input type="number" step="0.1" value={oxigenoterapia.peep} onChange={(e) => handleOxigenoterapiaChange('peep', e.target.value)}
+                    placeholder="4-8" className="w-full px-3 py-2 border-2 border-cyan-200 rounded-lg focus:border-cyan-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">PIP (cmH₂O)</label>
+                  <input type="number" step="0.1" value={oxigenoterapia.pip} onChange={(e) => handleOxigenoterapiaChange('pip', e.target.value)}
+                    placeholder="15-25" className="w-full px-3 py-2 border-2 border-cyan-200 rounded-lg focus:border-cyan-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Frecuencia Resp (rpm)</label>
+                  <input type="number" value={oxigenoterapia.frecuenciaResp} onChange={(e) => handleOxigenoterapiaChange('frecuenciaResp', e.target.value)}
+                    placeholder="30-60" className="w-full px-3 py-2 border-2 border-cyan-200 rounded-lg focus:border-cyan-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tiempo Insp (seg)</label>
+                  <input type="number" step="0.1" value={oxigenoterapia.tiempoInsp} onChange={(e) => handleOxigenoterapiaChange('tiempoInsp', e.target.value)}
+                    placeholder="0.3-0.5" className="w-full px-3 py-2 border-2 border-cyan-200 rounded-lg focus:border-cyan-500 focus:outline-none" />
+                </div>
+              </div>
+              {oxigenoterapia.modoVentilacion && (
+                <div className="bg-cyan-50 rounded-xl p-6 border-2 border-cyan-200">
+                  <h3 className="text-lg font-bold text-cyan-800 mb-3">Información del Modo: {modosVentilacion[oxigenoterapia.modoVentilacion].nombre}</h3>
+                  <p className="text-gray-700 mb-2"><strong>Descripción:</strong> {modosVentilacion[oxigenoterapia.modoVentilacion].descripcion}</p>
+                  <p className="text-gray-700"><strong>Rangos recomendados:</strong> {modosVentilacion[oxigenoterapia.modoVentilacion].rango}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Guía de Oxigenoterapia */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Guía de Oxigenoterapia Neonatal</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-3">Objetivos de SatO₂ según EG</h4>
+                  <ul className="text-sm space-y-2 text-gray-700">
+                    <li><strong>&lt;28 sem:</strong> 88-92%</li>
+                    <li><strong>28-32 sem:</strong> 88-94%</li>
+                    <li><strong>32-36 sem:</strong> 90-95%</li>
+                    <li><strong>&gt;36 sem:</strong> 92-97%</li>
+                  </ul>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200">
+                  <h4 className="font-semibold text-green-800 mb-3">Indicaciones de Ventilación</h4>
+                  <ul className="text-sm space-y-2 text-gray-700">
+                    <li>• Apnea recurrente o grave</li>
+                    <li>• PaO₂ &lt;50 mmHg con FiO₂ &gt;60%</li>
+                    <li>• PaCO₂ &gt;60 mmHg con pH &lt;7.20</li>
+                    <li>• Trabajo respiratorio excesivo</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB DISPOSITIVOS MÉDICOS */}
+        {activeTab === 'dispositivos' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Syringe className="text-purple-500" size={28} />
+                Calculadora de Catéteres y Dispositivos
+              </h2>
+
+              {/* Catéter Umbilical */}
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-purple-800 mb-4">Catéter Umbilical (Fórmula de Dunn)</h3>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Peso del RN (kg)</label>
+                    <input type="number" step="0.01" value={dispositivos.cateterUmbilical.peso}
+                      onChange={(e) => setDispositivos(prev => ({ ...prev, cateterUmbilical: { ...prev.cateterUmbilical, peso: e.target.value }}))}
+                      placeholder="Ej: 1.5" className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Longitud Torácica (cm)</label>
+                    <input type="number" step="0.1" value={dispositivos.cateterUmbilical.longitudTorax}
+                      onChange={(e) => setDispositivos(prev => ({ ...prev, cateterUmbilical: { ...prev.cateterUmbilical, longitudTorax: e.target.value }}))}
+                      placeholder="Hombro-ombligo" className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:outline-none" />
+                  </div>
+                </div>
+                {calcularCateterUmbilical() && (
+                  <div className="bg-purple-50 rounded-xl p-6 border-2 border-purple-200">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-bold text-purple-800 mb-2">Catéter Arterial Umbilical (UAC)</h4>
+                        <p className="text-3xl font-bold text-purple-600">{calcularCateterUmbilical().uac} cm</p>
+                        <p className="text-sm text-gray-600 mt-2">Posición: T6-T9 (alta) o L3-L4 (baja)</p>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-purple-800 mb-2">Catéter Venoso Umbilical (UVC)</h4>
+                        <p className="text-3xl font-bold text-purple-600">{calcularCateterUmbilical().uvc} cm</p>
+                        <p className="text-sm text-gray-600 mt-2">Posición: Unión vena cava-aurícula derecha</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* PICC */}
+              <div>
+                <h3 className="text-lg font-bold text-indigo-800 mb-4">Catéter PICC</h3>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Peso del RN (kg)</label>
+                    <input type="number" step="0.01" value={dispositivos.picc.peso}
+                      onChange={(e) => setDispositivos(prev => ({ ...prev, picc: { ...prev.picc, peso: e.target.value }}))}
+                      placeholder="Ej: 2.1" className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Punto de Inserción</label>
+                    <select value={dispositivos.picc.puntoInsercion}
+                      onChange={(e) => setDispositivos(prev => ({ ...prev, picc: { ...prev.picc, puntoInsercion: e.target.value }}))}
+                      className="w-full px-3 py-2 border-2 border-indigo-200 rounded-lg focus:border-indigo-500 focus:outline-none">
+                      <option value="">Seleccionar...</option>
+                      <option value="brazo-derecho">Brazo derecho</option>
+                      <option value="brazo-izquierdo">Brazo izquierdo</option>
+                      <option value="pierna-derecha">Pierna derecha</option>
+                      <option value="pierna-izquierda">Pierna izquierda</option>
+                    </select>
+                  </div>
+                </div>
+                {calcularPICC() && (
+                  <div className="bg-indigo-50 rounded-xl p-6 border-2 border-indigo-200">
+                    <h4 className="font-bold text-indigo-800 mb-3">Resultado del Cálculo</h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Longitud Recomendada</p>
+                        <p className="text-3xl font-bold text-indigo-600">{calcularPICC().longitud} cm</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Calibre Recomendado</p>
+                        <p className="text-3xl font-bold text-indigo-600">{calcularPICC().calibre}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB DIAGNÓSTICOS NANDA-NIC-NOC */}
+        {activeTab === 'diagnosticos' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <FileText className="text-emerald-500" size={28} />
+                Diagnósticos de Enfermería NANDA-NIC-NOC
+              </h2>
+
+              {/* Diagnósticos NANDA Comunes */}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-emerald-800 mb-4">Diagnósticos NANDA en Neonatología</h3>
+                <div className="space-y-3">
+                  {diagnosticosNANDA.map((dx, i) => (
+                    <div key={i} className="bg-emerald-50 rounded-lg p-4 border-2 border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                      onClick={() => setDiagnosticos(prev => ({ ...prev, nanda: [...prev.nanda, dx.codigo] }))}>
+                      <div className="flex items-start gap-3">
+                        <div className="bg-emerald-500 text-white px-3 py-1 rounded-lg font-bold text-sm">{dx.codigo}</div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-emerald-900 mb-1">{dx.nombre}</h4>
+                          <p className="text-sm text-gray-600">R/C: {dx.relacionado}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Taxonomía NIC-NOC */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                  <h4 className="font-bold text-blue-800 mb-3 text-center">NANDA</h4>
+                  <p className="text-sm text-center text-gray-600">Diagnósticos de Enfermería</p>
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs bg-white rounded p-2">• Identifica problemas</div>
+                    <div className="text-xs bg-white rounded p-2">• Establece prioridades</div>
+                    <div className="text-xs bg-white rounded p-2">• Guía plan de cuidados</div>
+                  </div>
+                </div>
+
+                <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
+                  <h4 className="font-bold text-green-800 mb-3 text-center">NIC</h4>
+                  <p className="text-sm text-center text-gray-600">Intervenciones de Enfermería</p>
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs bg-white rounded p-2">• Monitorización continua</div>
+                    <div className="text-xs bg-white rounded p-2">• Cuidados especializados</div>
+                    <div className="text-xs bg-white rounded p-2">• Educación familiar</div>
+                  </div>
+                </div>
+
+                <div className="bg-purple-50 rounded-xl p-6 border-2 border-purple-200">
+                  <h4 className="font-bold text-purple-800 mb-3 text-center">NOC</h4>
+                  <p className="text-sm text-center text-gray-600">Resultados de Enfermería</p>
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs bg-white rounded p-2">• Evalúa efectividad</div>
+                    <div className="text-xs bg-white rounded p-2">• Mide resultados</div>
+                    <div className="text-xs bg-white rounded p-2">• Ajusta intervenciones</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Patrones Funcionales */}
+              <div className="mt-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Patrones Funcionales de Salud (Gordon)</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    'Percepción-Salud', 'Nutricional-Metabólico', 'Eliminación', 'Actividad-Ejercicio',
+                    'Sueño-Descanso', 'Cognitivo-Perceptual', 'Autopercepción', 'Rol-Relaciones',
+                    'Sexualidad', 'Adaptación-Tolerancia', 'Valores-Creencias'
+                  ].map((patron, i) => (
+                    <div key={i} className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg p-3 text-center text-sm font-semibold text-gray-700 hover:from-gray-200 hover:to-gray-300 transition-colors cursor-pointer">
+                      {patron}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mensaje si no hay datos */}
+        {!datos && activeTab === 'prenatal' && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-2xl p-6">
+            <p className="text-blue-800"><span className="font-bold">💡 Instrucciones:</span> Ingresa las semanas de gestación (8-40) para activar el sistema completo.</p>
+          </div>
+        )}
+
+        {/* Resumen del Proyecto */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6 border-2 border-green-200">
+          <h2 className="text-2xl font-bold text-green-800 mb-4">✅ Sistema NeoClinic Completo - V1.0</h2>
+          <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-700">
+            <div>
+              <h3 className="font-bold text-green-700 mb-2">Módulos Implementados:</h3>
+              <ul className="space-y-1">
+                <li>✅ Control Prenatal con percentiles</li>
+                <li>✅ Escalas Clínicas (Apgar, Silverman, EVA, Braden, Morse)</li>
+                <li>✅ Laboratorio con interpretación</li>
+                <li>✅ Gráfica NICE de Bilirrubinas</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-bold text-green-700 mb-2">Módulos Nuevos:</h3>
+              <ul className="space-y-1">
+                <li>✅ <strong>Farmacología</strong> - Calculadora de dosis</li>
+                <li>✅ <strong>Oxigenoterapia</strong> - Parámetros ventilatorios</li>
+                <li>✅ <strong>Dispositivos</strong> - Catéteres (Dunn, PICC)</li>
+                <li>✅ <strong>Diagnósticos</strong> - NANDA-NIC-NOC</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} subir documento
